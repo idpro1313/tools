@@ -33,7 +33,7 @@ create_ansible_playbook() {
   vars_prompt:
     - name: task_number
       prompt: |
-        ═══════════════════════════════════════
+        \n═══════════════════════════════════════
          Меню управления Ubuntu Server
         ═══════════════════════════════════════
          1. Полное обновление системы
@@ -137,7 +137,11 @@ create_ansible_playbook() {
 
     - name: Результат установки
       debug:
-        msg: "Успешно установлены пакеты:\n{{ install_result.results | map(attribute='item') | join('\n') }}"
+        msg: |
+          Установка завершена:
+          - Изменения: {{ install_result.changed }}
+          - Сообщение: {{ install_result.msg }}
+          - Установленные пакеты: {{ install_result.stdout }}
       when: task_number == "4"
 
     - name: "[5] - Настройка SSH"
@@ -261,8 +265,11 @@ main() {
   while true; do
     ansible-playbook ubuntu_tasks.yml
     if [ $? -eq 0 ]; then
-      echo "Работа завершена."
-      break
+      # Проверяем, был ли выбран пункт "Выход"
+      if grep -q "task_number: 8" ubuntu_tasks.yml; then
+        echo "Работа завершена."
+        break
+      fi
     else
       echo "Произошла ошибка. Повторите попытку."
     fi
