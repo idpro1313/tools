@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 
 # Установка Ansible, если он не установлен
 install_ansible() {
-  if ! command -v ansible &> /dev/null; then
+  if ! command -v ansible > /dev/null 2>&1; then
     echo "Установка Ansible..."
     sudo apt update
     sudo apt install -y ansible
@@ -55,7 +55,7 @@ create_ansible_playbook() {
           shell: |
             dpkg --list | grep linux-image | awk '{ print \$2 }' | sort -V | sed -n '/'$(uname -r)'/q;p'
           args:
-            executable: /bin/bash
+            executable: /bin/sh
           register: old_kernels
 
         - name: Удалить старые ядра (если они есть)
@@ -162,18 +162,6 @@ create_ansible_playbook() {
             - net.ipv6.conf.all.disable_ipv6
             - net.ipv6.conf.default.disable_ipv6
 
-        - name: Отключить IPv6 в GRUB
-          lineinfile:
-            path: /etc/default/grub
-            regexp: '^GRUB_CMDLINE_LINUX='
-            line: 'GRUB_CMDLINE_LINUX="ipv6.disable=1"'
-            state: present
-
-        - name: Обновить конфигурацию GRUB
-          shell: update-grub
-          args:
-            executable: /bin/bash
-
         - name: Перезагрузить систему (требуется для применения изменений IPv6)
           reboot:
       when: task_number == "6"
@@ -207,11 +195,16 @@ main() {
     echo "Запуск Ansible-playbook..."
     ansible-playbook ubuntu_tasks.yml
 
-    # Читаем значение task_number из файла
-    task_number=$(grep -oP 'task_number: "\K[^"]+' ubuntu_tasks.yml)
+    # Читаем значение task_number из временного файла
+    if [ -f task_number.txt ]; then
+      task_number=$(cat task_number.txt)
+      rm -f task_number.txt  # Удаляем временный файл
+    else
+      task_number=""
+    fi
 
     # Проверяем, был ли выбран выход
-    if [[ "$task_number" == "7" ]]; then
+    if [ "$task_number" = "7" ]; then
       echo "Выход из меню."
       break
     fi
