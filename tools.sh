@@ -1,20 +1,13 @@
 #!/bin/sh
 
-# Цвета для оформления (если терминал поддерживает)
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
 # Установка Ansible, если он не установлен
 install_ansible() {
   if ! command -v ansible > /dev/null 2>&1; then
-    printf "${YELLOW}Установка Ansible...${NC}\n"
+    echo "Установка Ansible..."
     sudo apt update
     sudo apt install -y ansible
   else
-    printf "${GREEN}Ansible уже установлен.${NC}\n"
+    echo "Ansible уже установлен."
   fi
 }
 
@@ -25,7 +18,7 @@ create_ansible_cfg() {
 display_skipped_hosts = False
 stdout_callback = debug
 EOF
-  printf "${GREEN}Файл ansible.cfg создан.${NC}\n"
+  echo "Файл ansible.cfg создан."
 }
 
 # Создание YAML-файла с задачами
@@ -40,25 +33,25 @@ create_ansible_playbook() {
   vars_prompt:
     - name: task_number
       prompt: |
-        \n${BLUE}═══════════════════════════════════════
+        \n═══════════════════════════════════════
          Меню управления Ubuntu Server
-        ═══════════════════════════════════════${NC}
-         ${GREEN}1${NC}. Полное обновление системы
-         ${GREEN}2${NC}. Очистка старых ядер
-         ${GREEN}3${NC}. Удаление ненужных пакетов
-         ${GREEN}4${NC}. Установка базовых утилит
-         ${GREEN}5${NC}. Настройка доступа SSH для root
-         ${GREEN}6${NC}. Установка Docker и Portainer
-         ${GREEN}7${NC}. Отключение IPv6
-         ${GREEN}8${NC}. Выход
+        ═══════════════════════════════════════
+         1. Полное обновление системы
+         2. Очистка старых ядер
+         3. Удаление ненужных пакетов
+         4. Установка базовых утилит
+         5. Настройка доступа SSH для root
+         6. Установка Docker и Portainer
+         7. Отключение IPv6
+         8. Выход
 
-        Введите номер задачи: 
+        Введите номер задачи:
       private: no
 
   tasks:
     - name: "[1] - Запуск обновления системы"
       debug:
-        msg: "${YELLOW}Инициирую полное обновление системы...${NC}"
+        msg: "Инициирую полное обновление системы..."
       when: task_number == "1"
 
     - name: Выполнить обновление
@@ -71,14 +64,14 @@ create_ansible_playbook() {
 
     - name: Результат обновления
       debug:
-        msg: "${GREEN}Система успешно обновлена!${NC}"
+        msg: "Система успешно обновлена!"
       when: 
         - task_number == "1"
         - update_result is changed
 
     - name: "[2] - Поиск старых ядер"
       debug:
-        msg: "${YELLOW}Ищу старые версии ядер...${NC}"
+        msg: "Ищу старые версии ядер..."
       when: task_number == "2"
 
     - name: Удаление старых ядер
@@ -104,13 +97,13 @@ create_ansible_playbook() {
 
         - name: Нет ядер для удаления
           debug:
-            msg: "${YELLOW}Актуальные ядра не найдены, удаление не требуется${NC}"
+            msg: "Актуальные ядра не найдены, удаление не требуется"
           when: kernels_to_remove.stdout == ""
       when: task_number == "2"
 
     - name: "[3] - Очистка пакетов"
       debug:
-        msg: "${YELLOW}Выполняю очистку ненужных пакетов...${NC}"
+        msg: "Выполняю очистку ненужных пакетов..."
       when: task_number == "3"
 
     - name: Удаление ненужных пакетов
@@ -122,12 +115,12 @@ create_ansible_playbook() {
 
     - name: Результат очистки
       debug:
-        msg: "${GREEN}Освобождено места: {{ autoremove_result.freed_space | default('0') }}B${NC}"
+        msg: "Освобождено места: {{ autoremove_result.freed_space | default('0') }}B"
       when: task_number == "3"
 
     - name: "[4] - Установка ПО"
       debug:
-        msg: "${YELLOW}Начинаю установку базовых утилит...${NC}"
+        msg: "Начинаю установку базовых утилит..."
       when: task_number == "4"
 
     - name: Установка пакетов
@@ -144,12 +137,12 @@ create_ansible_playbook() {
 
     - name: Результат установки
       debug:
-        msg: "${GREEN}Успешно установлены пакеты:\n{{ install_result.results | map(attribute='item') | join('\n') }}${NC}"
+        msg: "Успешно установлены пакеты:\n{{ install_result.results | map(attribute='item') | join('\n') }}"
       when: task_number == "4"
 
     - name: "[5] - Настройка SSH"
       debug:
-        msg: "${YELLOW}Настраиваю доступ для root...${NC}"
+        msg: "Настраиваю доступ для root..."
       when: task_number == "5"
 
     - name: Настройка SSH
@@ -167,12 +160,12 @@ create_ansible_playbook() {
 
     - name: Результат настройки SSH
       debug:
-        msg: "${GREEN}Доступ по SSH для root успешно настроен!${NC}"
+        msg: "Доступ по SSH для root успешно настроен!"
       when: task_number == "5"
 
     - name: "[6] - Установка Docker"
       debug:
-        msg: "${YELLOW}Начинаю установку Docker и Portainer...${NC}"
+        msg: "Начинаю установку Docker и Portainer..."
       when: task_number == "6"
 
     - name: Установка Docker
@@ -217,12 +210,12 @@ create_ansible_playbook() {
 
     - name: Результат установки Docker
       debug:
-        msg: "${GREEN}Docker и Portainer успешно установлены!\nАдрес панели: https://{{ ansible_host }}:9443${NC}"
+        msg: "Docker и Portainer успешно установлены!\nАдрес панели: https://{{ ansible_host }}:9443"
       when: task_number == "6"
 
     - name: "[7] - Отключение IPv6"
       debug:
-        msg: "${YELLOW}Выполняю отключение IPv6...${NC}"
+        msg: "Выполняю отключение IPv6..."
       when: task_number == "7"
 
     - name: Отключение IPv6
@@ -241,25 +234,25 @@ create_ansible_playbook() {
 
     - name: Результат отключения IPv6
       debug:
-        msg: "${GREEN}IPv6 успешно отключен!${NC}"
+        msg: "IPv6 успешно отключен!"
       when: task_number == "7"
 
     - name: Выход
       debug:
-        msg: "${BLUE}Завершение работы...${NC}"
+        msg: "Завершение работы..."
       when: task_number == "8"
 
     - name: Ошибка выбора
       debug:
-        msg: "${RED}Ошибка: Некорректный номер задачи!${NC}"
+        msg: "Ошибка: Некорректный номер задачи!"
       when: task_number not in ["1","2","3","4","5","6","7","8"]
 EOF
 }
 
 main() {
-  printf "${BLUE}═══════════════════════════════════════\n"
-  printf "  Настройка Ubuntu Server\n"
-  printf "═══════════════════════════════════════${NC}\n"
+  echo "═══════════════════════════════════════"
+  echo "  Настройка Ubuntu Server"
+  echo "═══════════════════════════════════════"
   
   install_ansible
   create_ansible_cfg
@@ -268,10 +261,10 @@ main() {
   while true; do
     ansible-playbook ubuntu_tasks.yml
     if [ $? -eq 0 ]; then
-      printf "${BLUE}Работа завершена.${NC}\n"
+      echo "Работа завершена."
       break
     else
-      printf "${RED}Произошла ошибка. Повторите попытку.${NC}\n"
+      echo "Произошла ошибка. Повторите попытку."
     fi
   done
 }
