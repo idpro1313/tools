@@ -133,16 +133,6 @@ create_ansible_playbook() {
           - cron
         state: present
       when: task_number == "4"
-      register: install_result
-
-    - name: Результат установки
-      debug:
-        msg: |
-          Установка завершена:
-          - Изменения: {{ install_result.changed }}
-          - Сообщение: {{ install_result.msg }}
-          - Установленные пакеты: {{ install_result.stdout }}
-      when: task_number == "4"
 
     - name: "[5] - Настройка SSH"
       debug:
