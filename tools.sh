@@ -1,88 +1,131 @@
 #!/bin/sh
 
+# Цвета для оформления (если терминал поддерживает)
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
 # Установка Ansible, если он не установлен
 install_ansible() {
   if ! command -v ansible > /dev/null 2>&1; then
-    echo "Установка Ansible..."
+    printf "${YELLOW}Установка Ansible...${NC}\n"
     sudo apt update
     sudo apt install -y ansible
   else
-    echo "Ansible уже установлен."
+    printf "${GREEN}Ansible уже установлен.${NC}\n"
   fi
 }
 
-# Создание файла ansible.cfg для отключения вывода пропущенных задач
+# Создание файла ansible.cfg
 create_ansible_cfg() {
   cat <<EOF > ansible.cfg
 [defaults]
 display_skipped_hosts = False
+stdout_callback = debug
 EOF
-  echo "Файл ansible.cfg создан в текущей директории."
+  printf "${GREEN}Файл ansible.cfg создан.${NC}\n"
 }
 
-# Создание YAML-файла с задачами и меню
+# Создание YAML-файла с задачами
 create_ansible_playbook() {
   cat <<EOF > ubuntu_tasks.yml
 ---
-- name: Меню для выполнения задач на свежеустановленной Ubuntu
+- name: Меню управления сервером Ubuntu
   hosts: localhost
-  become: yes  # Запрашиваем права sudo
+  become: yes
   gather_facts: no
 
   vars_prompt:
     - name: task_number
       prompt: |
-        Выберите номер задачи для выполнения:
-        1. Обновить компоненты системы
-        2. Очистить старые ядра
-        3. Установить базовые программы (net-tools, mc, nano, htop, cron)
-        4. Дать доступ по SSH для root
-        5. Установить Docker и Portainer
-        6. Выключить IPv6
-        7. Выход
+        \n${BLUE}═══════════════════════════════════════
+         Меню управления Ubuntu Server
+        ═══════════════════════════════════════${NC}
+         ${GREEN}1${NC}. Полное обновление системы
+         ${GREEN}2${NC}. Очистка старых ядер
+         ${GREEN}3${NC}. Удаление ненужных пакетов
+         ${GREEN}4${NC}. Установка базовых утилит
+         ${GREEN}5${NC}. Настройка доступа SSH для root
+         ${GREEN}6${NC}. Установка Docker и Portainer
+         ${GREEN}7${NC}. Отключение IPv6
+         ${GREEN}8${NC}. Выход
+
+        Введите номер задачи: 
       private: no
 
   tasks:
-    - name: Сохранить выбор пользователя в файл
-      copy:
-        content: "{{ task_number }}"
-        dest: ./task_number.txt
-      when: task_number is defined
+    - name: "[1] - Запуск обновления системы"
+      debug:
+        msg: "${YELLOW}Инициирую полное обновление системы...${NC}"
+      when: task_number == "1"
 
-    - name: Обновить компоненты системы
+    - name: Выполнить обновление
       apt:
         update_cache: yes
         upgrade: dist
+        autoremove: yes
       when: task_number == "1"
+      register: update_result
 
-    - name: Очистить старые ядра
+    - name: Результат обновления
+      debug:
+        msg: "${GREEN}Система успешно обновлена!${NC}"
+      when: 
+        - task_number == "1"
+        - update_result is changed
+
+    - name: "[2] - Поиск старых ядер"
+      debug:
+        msg: "${YELLOW}Ищу старые версии ядер...${NC}"
+      when: task_number == "2"
+
+    - name: Удаление старых ядер
       block:
-        - name: Удалить старые ядра и заголовки
+        - name: Поиск и удаление
           shell: |
-            echo $(dpkg --list | grep linux-image | awk '{ print \$2 }' | sort -V | sed -n '/'$(uname -r)'/q;p') $(dpkg --list | grep linux-headers | awk '{ print \$2 }' | sort -V | sed -n '/'"$(uname -r | sed "s/\\([0-9.-]*\\)-\\([^0-9]\\+\\)/\\1/")"'/q;p') | xargs sudo apt-get -y purge
+            echo $(dpkg --list | grep linux-image | awk '{ print \$2 }' | sort -V | sed -n '/'$(uname -r)'/q;p') \\
+            $(dpkg --list | grep linux-headers | awk '{ print \$2 }' | sort -V | sed -n '/'"\$(uname -r | sed "s/\\([0-9.-]*\\)-\\([^0-9]\\+\\)/\\1/")"'/q;p') \\
+            | xargs sudo apt-get -y purge
           args:
             executable: /bin/sh
           register: kernel_cleanup
 
-        - name: Вывод результата очистки ядер
+        - name: Результат очистки
           debug:
-            msg: |
-              Удалены следующие ядра и заголовки:
-              {{ kernel_cleanup.stdout }}
+            msg: "${GREEN}Удалены пакеты:\n{{ kernel_cleanup.stdout_lines | join('\n') }}${NC}"
           when: kernel_cleanup.stdout != ""
 
-        - name: Удалить ненужные зависимости
-          apt:
-            autoremove: yes
-            autoclean: yes
-
-        - name: Сообщение, если старых ядер нет
+        - name: Нет ядер для удаления
           debug:
-            msg: "Старые ядра и заголовки не найдены."
+            msg: "${YELLOW}Актуальные ядра не найдены, удаление не требуется${NC}"
           when: kernel_cleanup.stdout == ""
       when: task_number == "2"
 
-    - name: Установить базовые программы
+    - name: "[3] - Очистка пакетов"
+      debug:
+        msg: "${YELLOW}Выполняю очистку ненужных пакетов...${NC}"
+      when: task_number == "3"
+
+    - name: Удаление ненужных пакетов
+      apt:
+        autoremove: yes
+        autoclean: yes
+      when: task_number == "3"
+      register: autoremove_result
+
+    - name: Результат очистки
+      debug:
+        msg: "${GREEN}Освобождено места: {{ autoremove_result.freed_space | default('0') }}B${NC}"
+      when: task_number == "3"
+
+    - name: "[4] - Установка ПО"
+      debug:
+        msg: "${YELLOW}Начинаю установку базовых утилит...${NC}"
+      when: task_number == "4"
+
+    - name: Установка пакетов
       apt:
         name:
           - net-tools
@@ -91,27 +134,46 @@ create_ansible_playbook() {
           - htop
           - cron
         state: present
-      when: task_number == "3"
+      when: task_number == "4"
+      register: install_result
 
-    - name: Дать доступ по SSH для root
+    - name: Результат установки
+      debug:
+        msg: "${GREEN}Успешно установлены пакеты:\n{{ install_result.results | map(attribute='item') | join('\n') }}${NC}"
+      when: task_number == "4"
+
+    - name: "[5] - Настройка SSH"
+      debug:
+        msg: "${YELLOW}Настраиваю доступ для root...${NC}"
+      when: task_number == "5"
+
+    - name: Настройка SSH
       block:
-        - name: Разрешить вход по SSH для root
-          lineinfile:
+        - lineinfile:
             path: /etc/ssh/sshd_config
             regexp: '^#?PermitRootLogin'
             line: 'PermitRootLogin yes'
             state: present
 
-        - name: Перезапустить службу SSH
-          service:
+        - service:
             name: ssh
             state: restarted
-      when: task_number == "4"
+      when: task_number == "5"
+      register: ssh_result
 
-    - name: Установить Docker и Portainer
+    - name: Результат настройки SSH
+      debug:
+        msg: "${GREEN}Доступ по SSH для root успешно настроен!${NC}"
+      when: task_number == "5"
+
+    - name: "[6] - Установка Docker"
+      debug:
+        msg: "${YELLOW}Начинаю установку Docker и Portainer...${NC}"
+      when: task_number == "6"
+
+    - name: Установка Docker
       block:
-        - name: Установить зависимости для Docker
-          apt:
+        - apt:
             name:
               - apt-transport-https
               - ca-certificates
@@ -119,29 +181,24 @@ create_ansible_playbook() {
               - software-properties-common
             state: present
 
-        - name: Добавить GPG-ключ Docker
-          apt_key:
+        - apt_key:
             url: https://download.docker.com/linux/ubuntu/gpg
             state: present
 
-        - name: Добавить репозиторий Docker
-          apt_repository:
-            repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable
+        - apt_repository:
+            repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
             state: present
 
-        - name: Установить Docker
-          apt:
+        - apt:
             name: docker-ce
             state: present
 
-        - name: Запустить и включить Docker
-          service:
+        - service:
             name: docker
             state: started
             enabled: yes
 
-        - name: Установить Portainer
-          docker_container:
+        - docker_container:
             name: portainer
             image: portainer/portainer-ce:latest
             ports:
@@ -152,12 +209,22 @@ create_ansible_playbook() {
               - portainer_data:/data
             restart_policy: always
             state: started
-      when: task_number == "5"
+      when: task_number == "6"
+      register: docker_result
 
-    - name: Выключить IPv6
+    - name: Результат установки Docker
+      debug:
+        msg: "${GREEN}Docker и Portainer успешно установлены!\nАдрес панели: https://{{ ansible_host }}:9443${NC}"
+      when: task_number == "6"
+
+    - name: "[7] - Отключение IPv6"
+      debug:
+        msg: "${YELLOW}Выполняю отключение IPv6...${NC}"
+      when: task_number == "7"
+
+    - name: Отключение IPv6
       block:
-        - name: Отключить IPv6 в sysctl
-          sysctl:
+        - sysctl:
             name: "{{ item }}"
             value: '1'
             state: present
@@ -166,54 +233,47 @@ create_ansible_playbook() {
             - net.ipv6.conf.all.disable_ipv6
             - net.ipv6.conf.default.disable_ipv6
 
-        - name: Перезагрузить систему (требуется для применения изменений IPv6)
-          reboot:
-      when: task_number == "6"
+        - shell: sysctl --system
+      when: task_number == "7"
+      register: ipv6_result
+
+    - name: Результат отключения IPv6
+      debug:
+        msg: "${GREEN}IPv6 успешно отключен!${NC}"
+      when: task_number == "7"
 
     - name: Выход
       debug:
-        msg: "Выход из меню"
-      when: task_number == "7"
+        msg: "${BLUE}Завершение работы...${NC}"
+      when: task_number == "8"
 
     - name: Ошибка выбора
       debug:
-        msg: "Неверный выбор. Пожалуйста, выберите номер от 1 до 7."
-      when: task_number not in ["1", "2", "3", "4", "5", "6", "7"]
+        msg: "${RED}Ошибка: Некорректный номер задачи!${NC}"
+      when: task_number not in ["1","2","3","4","5","6","7","8"]
 EOF
-  echo "YAML-файл с задачами создан: ubuntu_tasks.yml"
 }
 
-# Основной скрипт
 main() {
-  # Устанавливаем Ansible
+  printf "${BLUE}═══════════════════════════════════════\n"
+  printf "  Настройка Ubuntu Server\n"
+  printf "═══════════════════════════════════════${NC}\n"
+  
   install_ansible
-
-  # Создаем файл ansible.cfg
   create_ansible_cfg
-
-  # Создаем YAML-файл с задачами
   create_ansible_playbook
 
-  # Основной цикл меню
   while true; do
-    echo "Запуск Ansible-playbook..."
     ansible-playbook ubuntu_tasks.yml
+    [ -f task_number.txt ] && choice=$(cat task_number.txt) || choice=""
+    rm -f task_number.txt
 
-    # Читаем значение task_number из временного файла
-    if [ -f task_number.txt ]; then
-      task_number=$(cat task_number.txt)
-      rm -f task_number.txt  # Удаляем временный файл
-    else
-      task_number=""
-    fi
-
-    # Проверяем, был ли выбран выход
-    if [ "$task_number" = "7" ]; then
-      echo "Выход из меню."
-      break
-    fi
+    case $choice in
+      8)  printf "${BLUE}Работа завершена.${NC}\n"
+          break ;;
+      *)  sleep 1 ;;
+    esac
   done
 }
 
-# Запуск основной функции
 main
