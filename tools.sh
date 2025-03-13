@@ -83,24 +83,29 @@ create_ansible_playbook() {
 
     - name: Удаление старых ядер
       block:
-        - name: Поиск и удаление
+        - name: Поиск пакетов для удаления
           shell: |
-            echo $(dpkg --list | grep linux-image | awk '{ print \$2 }' | sort -V | sed -n '/'$(uname -r)'/q;p') \\
-            $(dpkg --list | grep linux-headers | awk '{ print \$2 }' | sort -V | sed -n '/'"\$(uname -r | sed "s/\\([0-9.-]*\\)-\\([^0-9]\\+\\)/\\1/")"'/q;p') \\
-            | xargs sudo apt-get -y purge
+            kernels_to_remove=\$(echo \$(dpkg --list | grep linux-image | awk '{ print \$2 }' | sort -V | sed -n '/'"\$(uname -r)"'/q;p') \\
+            \$(dpkg --list | grep linux-headers | awk '{ print \$2 }' | sort -V | sed -n '/'"\$(uname -r | sed "s/\\([0-9.-]*\\)-\\([^0-9]\\+\\)/\\1/")"'/q;p'))
+            if [ -n "\$kernels_to_remove" ]; then
+              echo "\$kernels_to_remove"
+            else
+              echo ""
+            fi
           args:
-            executable: /bin/sh
-          register: kernel_cleanup
+            executable: /bin/bash
+          register: kernels_to_remove
 
-        - name: Результат очистки
-          debug:
-            msg: "${GREEN}Удалены пакеты:\n{{ kernel_cleanup.stdout_lines | join('\n') }}${NC}"
-          when: kernel_cleanup.stdout != ""
+        - name: Удаление пакетов
+          shell: |
+            echo "Удаляемые пакеты: {{ kernels_to_remove.stdout }}"
+            echo "{{ kernels_to_remove.stdout }}" | xargs sudo apt-get -y purge
+          when: kernels_to_remove.stdout != ""
 
         - name: Нет ядер для удаления
           debug:
             msg: "${YELLOW}Актуальные ядра не найдены, удаление не требуется${NC}"
-          when: kernel_cleanup.stdout == ""
+          when: kernels_to_remove.stdout == ""
       when: task_number == "2"
 
     - name: "[3] - Очистка пакетов"
