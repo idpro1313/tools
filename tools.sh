@@ -49,6 +49,11 @@ create_ansible_playbook() {
       private: no
 
   tasks:
+    - name: Проверка выбора "Выход"
+      set_fact:
+        exit_flag: "{{ true if task_number == '8' else false }}"
+      when: task_number == "8"
+
     - name: "[1] - Запуск обновления системы"
       debug:
         msg: "Инициирую полное обновление системы..."
@@ -256,7 +261,7 @@ main() {
     ansible-playbook ubuntu_tasks.yml
     if [ $? -eq 0 ]; then
       # Проверяем, был ли выбран пункт "Выход"
-      if grep -q "task_number: 8" ubuntu_tasks.yml; then
+      if grep -q "exit_flag: true" ubuntu_tasks.yml; then
         echo "Работа завершена."
         break
       fi
