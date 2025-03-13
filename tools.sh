@@ -11,6 +11,15 @@ install_ansible() {
   fi
 }
 
+# Создание файла ansible.cfg для отключения вывода пропущенных задач
+create_ansible_cfg() {
+  cat <<EOF > ansible.cfg
+[defaults]
+display_skipped_hosts = False
+EOF
+  echo "Файл ansible.cfg создан в текущей директории."
+}
+
 # Создание YAML-файла с задачами и меню
 create_ansible_playbook() {
   cat <<EOF > ubuntu_tasks.yml
@@ -187,13 +196,16 @@ main() {
   # Устанавливаем Ansible
   install_ansible
 
+  # Создаем файл ansible.cfg
+  create_ansible_cfg
+
   # Создаем YAML-файл с задачами
   create_ansible_playbook
 
   # Основной цикл меню
   while true; do
     echo "Запуск Ansible-playbook..."
-    ansible-playbook ubuntu_tasks.yml --display-skipped-hosts=no
+    ansible-playbook ubuntu_tasks.yml
 
     # Проверяем, был ли выбран выход
     if grep -q "task_number: \"7\"" ubuntu_tasks.yml; then
