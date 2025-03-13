@@ -28,7 +28,7 @@ create_ansible_playbook() {
 - name: Меню управления сервером Ubuntu
   hosts: localhost
   become: yes
-  gather_facts: no
+  gather_facts: yes  # Включаем сбор фактов
 
   vars_prompt:
     - name: task_number
