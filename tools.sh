@@ -57,31 +57,29 @@ create_ansible_playbook() {
 
     - name: Очистить старые ядра
       block:
-        - name: Поиск старых ядер
+        - name: Удалить старые ядра и заголовки
           shell: |
-            dpkg --list | grep linux-image | awk '{ print \$2 }' | sort -V | sed -n '/'$(uname -r)'/q;p'
+            echo $(dpkg --list | grep linux-image | awk '{ print \$2 }' | sort -V | sed -n '/'$(uname -r)'/q;p') $(dpkg --list | grep linux-headers | awk '{ print \$2 }' | sort -V | sed -n '/'"$(uname -r | sed "s/\\([0-9.-]*\\)-\\([^0-9]\\+\\)/\\1/")"'/q;p') | xargs sudo apt-get -y purge
           args:
             executable: /bin/sh
-          register: old_kernels
-
-        - name: Удалить старые ядра (если они есть)
-          apt:
-            name: "{{ old_kernels.stdout_lines }}"
-            state: absent
-            purge: yes
-          when: old_kernels.stdout_lines | length > 0
+          register: kernel_cleanup
 
         - name: Вывод результата очистки ядер
           debug:
             msg: |
-              Удалены следующие ядра:
-              {{ old_kernels.stdout_lines | join('\n') }}
-          when: old_kernels.stdout_lines | length > 0
+              Удалены следующие ядра и заголовки:
+              {{ kernel_cleanup.stdout }}
+          when: kernel_cleanup.stdout != ""
+
+        - name: Удалить ненужные зависимости
+          apt:
+            autoremove: yes
+            autoclean: yes
 
         - name: Сообщение, если старых ядер нет
           debug:
-            msg: "Старые ядра не найдены."
-          when: old_kernels.stdout_lines | length == 0
+            msg: "Старые ядра и заголовки не найдены."
+          when: kernel_cleanup.stdout == ""
       when: task_number == "2"
 
     - name: Установить базовые программы
