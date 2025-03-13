@@ -112,16 +112,28 @@ create_ansible_playbook() {
         msg: "Выполняю очистку ненужных пакетов..."
       when: task_number == "3"
 
-    - name: Удаление ненужных пакетов
-      apt:
-        autoremove: yes
-        autoclean: yes
+    - name: Удаление ненужных пакетов (autoremove)
+      shell: |
+        apt-get autoremove -y
+      args:
+        executable: /bin/bash
       when: task_number == "3"
       register: autoremove_result
 
+    - name: Очистка кэша пакетов (autoclean)
+      shell: |
+        apt-get autoclean -y
+      args:
+        executable: /bin/bash
+      when: task_number == "3"
+      register: autoclean_result
+
     - name: Результат очистки
       debug:
-        msg: "Освобождено места: {{ autoremove_result.freed_space | default('0') }}B"
+        msg: |
+          Очистка завершена:
+          - Удалено пакетов: {{ autoremove_result.stdout }}
+          - Очищен кэш пакетов: {{ autoclean_result.stdout }}
       when: task_number == "3"
 
     - name: "[4] - Установка ПО"
