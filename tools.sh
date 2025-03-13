@@ -67,6 +67,14 @@ create_ansible_playbook() {
         upgrade: dist
         autoremove: yes
       when: task_number == "1"
+      register: update_result
+
+    - name: Результат обновления
+      debug:
+        msg: "${GREEN}Система успешно обновлена!${NC}"
+      when: 
+        - task_number == "1"
+        - update_result is changed
 
     - name: "[2] - Поиск старых ядер"
       debug:
@@ -75,10 +83,10 @@ create_ansible_playbook() {
 
     - name: Удаление старых ядер
       block:
-        - name: Удалить старые ядра и заголовки
+        - name: Поиск и удаление
           shell: |
             echo $(dpkg --list | grep linux-image | awk '{ print \$2 }' | sort -V | sed -n '/'$(uname -r)'/q;p') \\
-            $(dpkg --list | grep linux-headers | awk '{ print \$2 }' | sort -V | sed -n '/'"$(uname -r | sed "s/\\([0-9.-]*\\)-\\([^0-9]\\+\\)/\\1/")"'/q;p') \\
+            $(dpkg --list | grep linux-headers | awk '{ print \$2 }' | sort -V | sed -n '/'"\$(uname -r | sed "s/\\([0-9.-]*\\)-\\([^0-9]\\+\\)/\\1/")"'/q;p') \\
             | xargs sudo apt-get -y purge
           args:
             executable: /bin/sh
@@ -86,12 +94,12 @@ create_ansible_playbook() {
 
         - name: Результат очистки
           debug:
-            msg: "${GREEN}Удалены следующие ядра и заголовки:${NC}\n{{ kernel_cleanup.stdout }}"
+            msg: "${GREEN}Удалены пакеты:\n{{ kernel_cleanup.stdout_lines | join('\n') }}${NC}"
           when: kernel_cleanup.stdout != ""
 
-        - name: Сообщение, если старых ядер нет
+        - name: Нет ядер для удаления
           debug:
-            msg: "${YELLOW}Старые ядра и заголовки не найдены.${NC}"
+            msg: "${YELLOW}Актуальные ядра не найдены, удаление не требуется${NC}"
           when: kernel_cleanup.stdout == ""
       when: task_number == "2"
 
@@ -104,6 +112,12 @@ create_ansible_playbook() {
       apt:
         autoremove: yes
         autoclean: yes
+      when: task_number == "3"
+      register: autoremove_result
+
+    - name: Результат очистки
+      debug:
+        msg: "${GREEN}Освобождено места: {{ autoremove_result.freed_space | default('0') }}B${NC}"
       when: task_number == "3"
 
     - name: "[4] - Установка ПО"
@@ -120,6 +134,12 @@ create_ansible_playbook() {
           - htop
           - cron
         state: present
+      when: task_number == "4"
+      register: install_result
+
+    - name: Результат установки
+      debug:
+        msg: "${GREEN}Успешно установлены пакеты:\n{{ install_result.results | map(attribute='item') | join('\n') }}${NC}"
       when: task_number == "4"
 
     - name: "[5] - Настройка SSH"
@@ -138,6 +158,12 @@ create_ansible_playbook() {
         - service:
             name: ssh
             state: restarted
+      when: task_number == "5"
+      register: ssh_result
+
+    - name: Результат настройки SSH
+      debug:
+        msg: "${GREEN}Доступ по SSH для root успешно настроен!${NC}"
       when: task_number == "5"
 
     - name: "[6] - Установка Docker"
@@ -184,6 +210,12 @@ create_ansible_playbook() {
             restart_policy: always
             state: started
       when: task_number == "6"
+      register: docker_result
+
+    - name: Результат установки Docker
+      debug:
+        msg: "${GREEN}Docker и Portainer успешно установлены!\nАдрес панели: https://{{ ansible_host }}:9443${NC}"
+      when: task_number == "6"
 
     - name: "[7] - Отключение IPv6"
       debug:
@@ -192,22 +224,22 @@ create_ansible_playbook() {
 
     - name: Отключение IPv6
       block:
-        - name: Отключить IPv6 для всех интерфейсов
-          sysctl:
-            name: net.ipv6.conf.all.disable_ipv6
+        - sysctl:
+            name: "{{ item }}"
             value: '1'
             state: present
             reload: yes
+          loop:
+            - net.ipv6.conf.all.disable_ipv6
+            - net.ipv6.conf.default.disable_ipv6
 
-        - name: Отключить IPv6 для интерфейсов по умолчанию
-          sysctl:
-            name: net.ipv6.conf.default.disable_ipv6
-            value: '1'
-            state: present
-            reload: yes
+        - shell: sysctl --system
+      when: task_number == "7"
+      register: ipv6_result
 
-        - name: Применить изменения
-          shell: sysctl --system
+    - name: Результат отключения IPv6
+      debug:
+        msg: "${GREEN}IPv6 успешно отключен!${NC}"
       when: task_number == "7"
 
     - name: Выход
@@ -233,16 +265,11 @@ main() {
 
   while true; do
     ansible-playbook ubuntu_tasks.yml
-    if [ -f task_number.txt ]; then
-      choice=$(cat task_number.txt)
-      rm -f task_number.txt
-    else
-      choice=""
-    fi
-
-    if [ "$choice" = "8" ]; then
+    if [ $? -eq 0 ]; then
       printf "${BLUE}Работа завершена.${NC}\n"
       break
+    else
+      printf "${RED}Произошла ошибка. Повторите попытку.${NC}\n"
     fi
   done
 }
