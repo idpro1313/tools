@@ -32,6 +32,9 @@ create_ansible_playbook() {
         7. Выход
       private: no
 
+  # Отключаем вывод пропущенных задач
+  display_skipped_hosts: no
+
   tasks:
     - name: Обновить компоненты системы
       apt:
@@ -41,16 +44,31 @@ create_ansible_playbook() {
 
     - name: Очистить старые ядра
       block:
-        - name: Поиск и удаление старых ядер
+        - name: Поиск старых ядер
           shell: |
-            dpkg --list | grep linux-image | awk '{ print \$2 }' | sort -V | sed -n '/'$(uname -r)'/q;p' | xargs sudo apt-get -y purge
+            dpkg --list | grep linux-image | awk '{ print \$2 }' | sort -V | sed -n '/'$(uname -r)'/q;p'
           args:
             executable: /bin/bash
-          register: kernel_cleanup
+          register: old_kernels
+
+        - name: Удалить старые ядра (если они есть)
+          apt:
+            name: "{{ old_kernels.stdout_lines }}"
+            state: absent
+            purge: yes
+          when: old_kernels.stdout_lines | length > 0
 
         - name: Вывод результата очистки ядер
           debug:
-            msg: "{{ kernel_cleanup.stdout }}"
+            msg: |
+              Удалены следующие ядра:
+              {{ old_kernels.stdout_lines | join('\n') }}
+          when: old_kernels.stdout_lines | length > 0
+
+        - name: Сообщение, если старых ядер нет
+          debug:
+            msg: "Старые ядра не найдены."
+          when: old_kernels.stdout_lines | length == 0
       when: task_number == "2"
 
     - name: Установить базовые программы
@@ -75,7 +93,7 @@ create_ansible_playbook() {
 
         - name: Перезапустить службу SSH
           service:
-            name: sshd
+            name: ssh
             state: restarted
       when: task_number == "4"
 
@@ -116,7 +134,8 @@ create_ansible_playbook() {
             name: portainer
             image: portainer/portainer-ce:latest
             ports:
-              - "9000:9000"
+              - "8000:8000"
+              - "9443:9443"
             volumes:
               - /var/run/docker.sock:/var/run/docker.sock
               - portainer_data:/data
@@ -173,9 +192,17 @@ main() {
   # Создаем YAML-файл с задачами
   create_ansible_playbook
 
-  # Запускаем Ansible-playbook
-  echo "Запуск Ansible-playbook..."
-  ansible-playbook ubuntu_tasks.yml
+  # Основной цикл меню
+  while true; do
+    echo "Запуск Ansible-playbook..."
+    ansible-playbook ubuntu_tasks.yml
+
+    # Проверяем, был ли выбран выход
+    if grep -q "task_number: \"7\"" ubuntu_tasks.yml; then
+      echo "Выход из меню."
+      break
+    fi
+  done
 }
 
 # Запуск основной функции
