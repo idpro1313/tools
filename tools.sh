@@ -75,17 +75,24 @@ create_ansible_playbook() {
 
     - name: Удаление старых ядер
       block:
-        - name: Поиск и удаление
+        - name: Удалить старые ядра и заголовки
           shell: |
             echo $(dpkg --list | grep linux-image | awk '{ print \$2 }' | sort -V | sed -n '/'$(uname -r)'/q;p') \\
-            $(dpkg --list | grep linux-headers | awk '{ print \$2 }' | sort -V | sed -n '/'"\$(uname -r | sed "s/\\([0-9.-]*\\)-\\([^0-9]\\+\\)/\\1/")"'/q;p') \\
+            $(dpkg --list | grep linux-headers | awk '{ print \$2 }' | sort -V | sed -n '/'"$(uname -r | sed "s/\\([0-9.-]*\\)-\\([^0-9]\\+\\)/\\1/")"'/q;p') \\
             | xargs sudo apt-get -y purge
           args:
             executable: /bin/sh
+          register: kernel_cleanup
 
         - name: Результат очистки
           debug:
-            msg: "${GREEN}Удалены старые ядра и заголовки.${NC}"
+            msg: "${GREEN}Удалены следующие ядра и заголовки:${NC}\n{{ kernel_cleanup.stdout }}"
+          when: kernel_cleanup.stdout != ""
+
+        - name: Сообщение, если старых ядер нет
+          debug:
+            msg: "${YELLOW}Старые ядра и заголовки не найдены.${NC}"
+          when: kernel_cleanup.stdout == ""
       when: task_number == "2"
 
     - name: "[3] - Очистка пакетов"
