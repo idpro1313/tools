@@ -19,6 +19,7 @@ create_ansible_playbook() {
   hosts: localhost
   become: yes  # Запрашиваем права sudo
   gather_facts: no
+
   vars_prompt:
     - name: task_number
       prompt: |
@@ -31,9 +32,6 @@ create_ansible_playbook() {
         6. Выключить IPv6
         7. Выход
       private: no
-
-  # Отключаем вывод пропущенных задач
-  display_skipped_hosts: false
 
   tasks:
     - name: Обновить компоненты системы
@@ -195,7 +193,7 @@ main() {
   # Основной цикл меню
   while true; do
     echo "Запуск Ansible-playbook..."
-    ansible-playbook ubuntu_tasks.yml
+    ansible-playbook ubuntu_tasks.yml --display-skipped-hosts=no
 
     # Проверяем, был ли выбран выход
     if grep -q "task_number: \"7\"" ubuntu_tasks.yml; then
