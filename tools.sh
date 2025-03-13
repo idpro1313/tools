@@ -164,7 +164,6 @@ create_ansible_playbook() {
             name: ssh
             state: restarted
       when: task_number == "5"
-      register: ssh_result
 
     - name: Результат настройки SSH
       debug:
@@ -215,7 +214,6 @@ create_ansible_playbook() {
             restart_policy: always
             state: started
       when: task_number == "6"
-      register: docker_result
 
     - name: Результат установки Docker
       debug:
@@ -240,7 +238,6 @@ create_ansible_playbook() {
 
         - shell: sysctl --system
       when: task_number == "7"
-      register: ipv6_result
 
     - name: Результат отключения IPv6
       debug:
