@@ -50,8 +50,9 @@ create_ansible_playbook() {
 
   tasks:
     - name: Проверка выбора "Выход"
-      set_fact:
-        exit_flag: "{{ true if task_number == '8' else false }}"
+      copy:
+        dest: ./exit_flag.txt
+        content: "{{ 'true' if task_number == '8' else 'false' }}"
       when: task_number == "8"
 
     - name: "[1] - Запуск обновления системы"
@@ -258,10 +259,13 @@ main() {
   create_ansible_playbook
 
   while true; do
+    # Удаляем временный файл перед каждым запуском
+    rm -f ./exit_flag.txt
+
     ansible-playbook ubuntu_tasks.yml
     if [ $? -eq 0 ]; then
       # Проверяем, был ли выбран пункт "Выход"
-      if grep -q "exit_flag: true" ubuntu_tasks.yml; then
+      if [ -f ./exit_flag.txt ] && grep -q "true" ./exit_flag.txt; then
         echo "Работа завершена."
         break
       fi
