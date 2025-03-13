@@ -185,16 +185,22 @@ create_ansible_playbook() {
 
     - name: Отключение IPv6
       block:
-        - sysctl:
-            name: "{{ item }}"
+        - name: Отключить IPv6 для всех интерфейсов
+          sysctl:
+            name: net.ipv6.conf.all.disable_ipv6
             value: '1'
             state: present
             reload: yes
-          loop:
-            - net.ipv6.conf.all.disable_ipv6
-            - net.ipv6.conf.default.disable_ipv6
 
-        - shell: sysctl --system
+        - name: Отключить IPv6 для интерфейсов по умолчанию
+          sysctl:
+            name: net.ipv6.conf.default.disable_ipv6
+            value: '1'
+            state: present
+            reload: yes
+
+        - name: Применить изменения
+          shell: sysctl --system
       when: task_number == "7"
 
     - name: Выход
