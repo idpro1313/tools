@@ -43,6 +43,12 @@ create_ansible_playbook() {
       private: no
 
   tasks:
+    - name: Сохранить выбор пользователя в файл
+      copy:
+        content: "{{ task_number }}"
+        dest: ./task_number.txt
+      when: task_number is defined
+
     - name: Обновить компоненты системы
       apt:
         update_cache: yes
