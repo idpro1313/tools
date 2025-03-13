@@ -33,7 +33,7 @@ create_ansible_playbook() {
       private: no
 
   # Отключаем вывод пропущенных задач
-  display_skipped_hosts: no
+  display_skipped_hosts: false
 
   tasks:
     - name: Обновить компоненты системы
