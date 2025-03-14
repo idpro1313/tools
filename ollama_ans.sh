@@ -37,11 +37,7 @@ cat <<EOF > "${PLAYBOOK_FILE}"
         ports:
           - "11434:11434"
 
-    - name: Получение текущего IP адреса
-      shell: hostname -I | awk '{print \$1}'
-      register: current_ip
-
-    - name: Запуск контейнера Open WebUI
+    - name: Запуск контейнера Open WebUI с параметром --add-host
       docker_container:
         name: open-webui
         image: ghcr.io/open-webui/open-webui:main
@@ -51,8 +47,8 @@ cat <<EOF > "${PLAYBOOK_FILE}"
           - "3000:8080"
         volumes:
           - open-webui-data:/app/backend/data
-        extra_hosts:
-          - "host-gateway:{{ current_ip.stdout }}"
+        command: >
+          --add-host=host.docker.internal:host-gateway
 
     - name: Запуск Watchtower для автоматического обновления
       docker_container:
