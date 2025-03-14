@@ -4,13 +4,21 @@
 OLLAMA_CONTAINER_NAME="ollama"
 OPENWEBUI_CONTAINER_NAME="open-webui"
 WATCHTOWER_CONTAINER_NAME="watchtower"
-OLLAMA_DATA_DIR="/ai/ollama"
+OLLAMA_DATA_DIR="/ai/ollama"  # Папка в корне файловой системы
 OPENWEBUI_DATA_VOLUME="open-webui-data"
 CURRENT_IP=$(hostname -I | awk '{print $1}')
 
+# Проверяем права доступа к корневой файловой системе
+if [ ! -w "/" ]; then
+  echo "Ошибка: у вас нет прав на запись в корневую файловую систему."
+  echo "Запустите скрипт с правами root или измените права доступа."
+  exit 1
+fi
+
 # Создаем директорию для данных Ollama
-mkdir -p "${OLLAMA_DATA_DIR}"
-chown -R "$(whoami):$(whoami)" "${OLLAMA_DATA_DIR}"
+echo "Создание папки ${OLLAMA_DATA_DIR}..."
+sudo mkdir -p "${OLLAMA_DATA_DIR}"
+sudo chown -R "$(whoami):$(whoami)" "${OLLAMA_DATA_DIR}"
 
 # Запускаем Ollama
 echo "Запуск контейнера Ollama..."
