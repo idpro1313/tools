@@ -18,6 +18,10 @@ cat <<EOF > "${PLAYBOOK_FILE}"
   hosts: localhost
   become: yes
   tasks:
+    - name: Проверка версии Ansible
+      debug:
+        msg: "Версия Ansible: {{ ansible_version }}"
+
     - name: Создание папки ${OLLAMA_DATA_DIR}
       file:
         path: ${OLLAMA_DATA_DIR}
@@ -25,6 +29,7 @@ cat <<EOF > "${PLAYBOOK_FILE}"
         owner: ${CURRENT_USER}
         group: ${CURRENT_USER}
         mode: '0755'
+      notify: "Задача 'Создание папки /ai/ollama' завершена"
 
     - name: Запуск контейнера Ollama
       docker_container:
@@ -36,8 +41,9 @@ cat <<EOF > "${PLAYBOOK_FILE}"
           - ${OLLAMA_DATA_DIR}:/root/.ollama
         ports:
           - "11434:11434"
+      notify: "Задача 'Запуск контейнера Ollama' завершена"
 
-    - name: Запуск контейнера Open WebUI с параметром --add-host
+    - name: Запуск контейнера Open WebUI с extra_hosts
       docker_container:
         name: open-webui
         image: ghcr.io/open-webui/open-webui:main
@@ -46,9 +52,10 @@ cat <<EOF > "${PLAYBOOK_FILE}"
         ports:
           - "3000:8080"
         volumes:
-          - open-webui-data:/app/backend/data
-        command: >
-          --add-host=host.docker.internal:host-gateway
+          - open-webui:/app/backend/data
+        extra_hosts:
+          - "host.docker.internal:host-gateway"
+      notify: "Задача 'Запуск контейнера Open WebUI' завершена"
 
     - name: Запуск Watchtower для автоматического обновления
       docker_container:
@@ -59,16 +66,44 @@ cat <<EOF > "${PLAYBOOK_FILE}"
         volumes:
           - /var/run/docker.sock:/var/run/docker.sock
         command: --interval 86400 ollama open-webui  # Проверка обновлений каждые 24 часа
+      notify: "Задача 'Запуск Watchtower' завершена"
 
     - name: Проверка запущенных контейнеров
       shell: docker ps --format "{{ '{{' }}.Names{{ '}}' }}"
       register: running_containers
+      notify: "Задача 'Проверка запущенных контейнеров' завершена"
 
     - name: Вывод статуса контейнеров
       debug:
         msg: |
           Запущенные контейнеры:
           {{ running_containers.stdout_lines }}
+      notify: "Задача 'Вывод статуса контейнеров' завершена"
+
+  handlers:
+    - name: "Задача 'Создание папки /ai/ollama' завершена"
+      debug:
+        msg: "Задача 'Создание папки /ai/ollama' завершена"
+
+    - name: "Задача 'Запуск контейнера Ollama' завершена"
+      debug:
+        msg: "Задача 'Запуск контейнера Ollama' завершена"
+
+    - name: "Задача 'Запуск контейнера Open WebUI' завершена"
+      debug:
+        msg: "Задача 'Запуск контейнера Open WebUI' завершена"
+
+    - name: "Задача 'Запуск Watchtower' завершена"
+      debug:
+        msg: "Задача 'Запуск Watchtower' завершена"
+
+    - name: "Задача 'Проверка запущенных контейнеров' завершена"
+      debug:
+        msg: "Задача 'Проверка запущенных контейнеров' завершена"
+
+    - name: "Задача 'Вывод статуса контейнеров' завершена"
+      debug:
+        msg: "Задача 'Вывод статуса контейнеров' завершена"
 EOF
 
 # Запускаем Ansible Playbook с подробным выводом
