@@ -18,7 +18,7 @@ Unix tools
 
 #### Запуск:
 -     sudo apt install git -y && git clone https://github.com/idpro1313/tools.git
--     sudo sh ./tools/tools.sh
+-     cd /tools && sudo sh ./tools/tools.sh
 
 #### Установка ollama в docker:
 -     sudo sh ./tools/ollama.sh
