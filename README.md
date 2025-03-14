@@ -22,7 +22,6 @@ Unix tools
 
 #### Установка ollama и Open WebUI в docker:
 -     cd tools && sudo sh ./ollama.sh
--     sh ./openwebui.sh
 
 #### Очистка 
 -     cd .. && rm -rf tools 
