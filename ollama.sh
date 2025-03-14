@@ -2,39 +2,53 @@
 
 # Определяем переменные
 OLLAMA_CONTAINER_NAME="ollama"
+OPENWEBUI_CONTAINER_NAME="open-webui"
+WATCHTOWER_CONTAINER_NAME="watchtower"
 OLLAMA_DATA_DIR="/ai/ollama"
-OLLAMA_PORT="11434"
+OPENWEBUI_DATA_VOLUME="open-webui-data"
+CURRENT_IP=$(hostname -I | awk '{print $1}')
 
 # Создаем директорию для данных Ollama
 mkdir -p "${OLLAMA_DATA_DIR}"
 chown -R "$(whoami):$(whoami)" "${OLLAMA_DATA_DIR}"
 
-# Создаем Ansible Playbook для установки Ollama
-cat <<EOF > install_ollama.yml
----
-- name: Установка Ollama в Docker
-  hosts: localhost
-  become: yes
-  tasks:
-    - name: Запуск контейнера Ollama
-      docker_container:
-        name: "${OLLAMA_CONTAINER_NAME}"
-        image: ollama/ollama
-        state: started
-        restart_policy: always
-        ports:
-          - "${OLLAMA_PORT}:${OLLAMA_PORT}"
-        volumes:
-          - "${OLLAMA_DATA_DIR}:/root/.ollama"
-EOF
+# Запускаем Ollama
+echo "Запуск контейнера Ollama..."
+docker run -d \
+  --name "${OLLAMA_CONTAINER_NAME}" \
+  -v "${OLLAMA_DATA_DIR}:/root/.ollama" \
+  -p 11434:11434 \
+  --restart always \
+  ollama/ollama
 
-# Запускаем Ansible Playbook
-ansible-playbook install_ollama.yml
+# Запускаем Open WebUI
+echo "Запуск контейнера Open WebUI..."
+docker run -d \
+  --name "${OPENWEBUI_CONTAINER_NAME}" \
+  -p 3000:8080 \
+  --add-host="host-gateway:${CURRENT_IP}" \
+  -v "${OPENWEBUI_DATA_VOLUME}:/app/backend/data" \
+  --restart always \
+  ghcr.io/open-webui/open-webui:main
 
-# Проверяем, что контейнер запущен
-if docker ps | grep "${OLLAMA_CONTAINER_NAME}"; then
-  echo "Ollama успешно установлен и запущен!"
-  echo "Данные хранятся в ${OLLAMA_DATA_DIR}"
+# Запускаем Watchtower для автоматического обновления контейнеров
+echo "Запуск Watchtower для автоматического обновления..."
+docker run -d \
+  --name "${WATCHTOWER_CONTAINER_NAME}" \
+  --volume /var/run/docker.sock:/var/run/docker.sock \
+  --restart always \
+  containrrr/watchtower \
+  "${OLLAMA_CONTAINER_NAME}" "${OPENWEBUI_CONTAINER_NAME}"
+
+# Проверяем, что контейнеры запущены
+echo "Проверка запущенных контейнеров..."
+if docker ps | grep "${OLLAMA_CONTAINER_NAME}" && \
+   docker ps | grep "${OPENWEBUI_CONTAINER_NAME}" && \
+   docker ps | grep "${WATCHTOWER_CONTAINER_NAME}"; then
+  echo "Все контейнеры успешно запущены!"
+  echo "Ollama доступен на порту 11434."
+  echo "Open WebUI доступен на порту 3000."
+  echo "Watchtower настроен для автоматического обновления."
 else
-  echo "Ошибка: контейнер Ollama не запущен."
+  echo "Ошибка: не все контейнеры запущены."
 fi
