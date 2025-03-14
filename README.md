@@ -20,7 +20,7 @@ Unix tools
 -     sudo apt install git -y && git clone https://github.com/idpro1313/tools.git
 -     cd tools && sudo sh ./tools.sh
 
-#### Установка ollama в docker:
+#### Установка ollama и Open WebUI в docker:
 -     cd tools && sudo sh ./ollama.sh
 -     sh ./openwebui.sh
 
