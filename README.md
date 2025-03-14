@@ -1,6 +1,6 @@
 # Tools (sh & ubuntu)
 Unix tools 
-#### Зайти на сервер и выполнить две команды в консоли:
+#### Запуск:
 -     sudo apt install git -y && git clone https://github.com/idpro1313/tools.git
 -     sudo sh ./tools/tools.sh
 -     sudo sh ./tools/ollama.sh
