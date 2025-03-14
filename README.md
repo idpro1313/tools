@@ -22,6 +22,7 @@ Unix tools
 
 #### Установка ollama в docker:
 -     cd tools && sudo sh ./ollama.sh
+-     docker run -d -p 3000:8080 --add-host=192.168.10.10:host-gateway -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:main
 
 #### Очистка 
 -     cd .. && rm -rf tools 
