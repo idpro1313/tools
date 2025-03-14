@@ -31,13 +31,6 @@ cat <<EOF > "${PLAYBOOK_FILE}"
         mode: '0755'
       notify: "Задача 'Создание папки /ai/ollama' завершена"
 
-    - name: Добавление записи в /etc/hosts для host.docker.internal
-      lineinfile:
-        path: /etc/hosts
-        line: "{{ ansible_default_ipv4.gateway }} host.docker.internal"
-        state: present
-      notify: "Задача 'Добавление записи в /etc/hosts' завершена"
-
     - name: Запуск контейнера Ollama
       docker_container:
         name: ollama
@@ -50,7 +43,7 @@ cat <<EOF > "${PLAYBOOK_FILE}"
           - "11434:11434"
       notify: "Задача 'Запуск контейнера Ollama' завершена"
 
-    - name: Запуск контейнера Open WebUI с --add-host
+    - name: Запуск контейнера Open WebUI
       docker_container:
         name: open-webui
         image: ghcr.io/open-webui/open-webui:main
@@ -60,7 +53,6 @@ cat <<EOF > "${PLAYBOOK_FILE}"
           - "3000:8080"
         volumes:
           - open-webui:/app/backend/data
-        command: --add-host=host.docker.internal:host-gateway
       notify: "Задача 'Запуск контейнера Open WebUI' завершена"
 
     - name: Запуск Watchtower для автоматического обновления
@@ -90,10 +82,6 @@ cat <<EOF > "${PLAYBOOK_FILE}"
     - name: "Задача 'Создание папки /ai/ollama' завершена"
       debug:
         msg: "Задача 'Создание папки /ai/ollama' завершена"
-
-    - name: "Задача 'Добавление записи в /etc/hosts' завершена"
-      debug:
-        msg: "Задача 'Добавление записи в /etc/hosts' завершена"
 
     - name: "Задача 'Запуск контейнера Ollama' завершена"
       debug:
