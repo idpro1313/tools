@@ -18,10 +18,10 @@ Unix tools
 
 #### Запуск:
 -     sudo apt install git -y && git clone https://github.com/idpro1313/tools.git
--     cd /tools && sudo sh ./tools/tools.sh
+-     cd tools && sudo sh ./tools.sh
 
 #### Установка ollama в docker:
--     sudo sh ./tools/ollama.sh
+-     cd tools && sudo sh ./ollama.sh
 
 #### Очистка 
--     rm -rf tools ubuntu_tasks.yml ansible.cfg exit_flag.txt install_ollama.yml
+-     cd ..&& rm -rf tools 
