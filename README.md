@@ -24,4 +24,4 @@ Unix tools
 -     cd tools && sudo sh ./ollama.sh
 
 #### Очистка 
--     cd ..&& rm -rf tools 
+-     cd .. && rm -rf tools 
