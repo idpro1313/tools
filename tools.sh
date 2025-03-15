@@ -149,6 +149,7 @@ create_ansible_playbook() {
           - nano
           - htop
           - cron
+          - traceroute
         state: present
       when: task_number == "4"
 
