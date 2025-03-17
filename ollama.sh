@@ -41,6 +41,8 @@ cat <<EOF > "${PLAYBOOK_FILE}"
           - ${OLLAMA_DATA_DIR}:/root/.ollama
         ports:
           - "11434:11434"
+        device_requests:
+          - capabilities: [gpu]
       notify: "Задача 'Запуск контейнера Ollama' завершена"
 
     - name: Запуск контейнера Open WebUI
